@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}产品{% endblock %}
+
+{% block extra_css %}
+<style>
+    .product-image-upload { position: relative; display: inline-flex; cursor: pointer; }
+    .product-image-upload:hover .product-thumb { outline: 2px solid #9babf5; }
+    .product-image-upload:focus-within .product-thumb { outline: 2px solid #4567e8; }
+    .sku-list { min-width: 180px; }
+    .sku-line + .sku-line { margin-top: .3rem; padding-top: .3rem; border-top: 1px solid var(--table-divider); }
+    .new-sku-row { display: flex; gap: .5rem; align-items: center; }
+    .sku-add-form { display: flex; gap: .4rem; margin-top: .5rem; }
+    .sku-add-form .form-control { min-width: 0; padding: .35rem .55rem; }
+    .sku-add-form .btn { flex: 0 0 auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-heading d-flex align-items-end justify-content-between gap-3 flex-wrap">
+    <div><h1>产品</h1><p class="mb-0">管理商品编码、图片和 SKU。</p></div>
+    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addProduct">＋ 新增产品</button>
+</div>
+<section class="collapse mb-4" id="addProduct">
+    <div class="card"><div class="card-body">
+        <form id="productForm" class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold" for="newProductName">产品编码</label>
+                <input class="form-control" id="newProductName" placeholder="厂家名称&商品名称" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold" for="newProductImage">产品图片</label>
+                <input class="form-control" id="newProductImage" type="file" accept=".jpg,.jpeg,.png,.gif,.webp" required>
+            </div>
+            <div class="col-12">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <label class="form-label small fw-semibold mb-0">SKU</label>
+                    <button class="btn btn-sm btn-outline-primary" type="button" id="addSkuInput">＋ 添加 SKU</button>
+                </div>
+                <div id="newSkuList" class="d-grid gap-2">
+                    <div class="new-sku-row">
+                        <input class="form-control new-sku-input" placeholder="输入 SKU 名称" required>
+                        <button class="icon-btn danger remove-new-sku" type="button" aria-label="删除 SKU" title="删除 SKU">×</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 text-end"><button class="btn btn-primary" type="submit">保存产品</button></div>
+        </form>
+    </div></div>
+</section>
+
+{% if has_missing_images %}
+<div class="alert alert-warning mb-4" role="status">
+    <div class="fw-semibold">还有 {{ missing_image_count }} 个产品没有图片</div>
+    <div class="small">请点击每个产品的图片位置上传图片；全部补齐后将自动显示完整产品列表。</div>
+</div>
+{% elif total_product_count %}
+<section class="card mb-4">
+    <div class="card-body">
+        <form class="row g-2 align-items-end" method="get">
+            <div class="col-md-9">
+                <label class="form-label small fw-semibold" for="filterName">厂家 / 产品名称</label>
+                <input class="form-control" id="filterName" name="name" value="{{ query }}" placeholder="搜索厂家或产品名称，也可输入 厂家名称&产品名称">
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button class="btn btn-primary flex-grow-1" type="submit">搜索</button>
+                <a class="btn btn-light" href="{{ url_for('products') }}">重置</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endif %}
+
+<section class="card overflow-hidden">
+    {% if products %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr><th class="ps-4">厂家&产品名称</th><th>图片</th><th>SKU</th><th class="text-end pe-4">操作</th></tr>
+            </thead>
+            <tbody>
+            {% for product in products %}
+            <tr data-product-row>
+                <td class="ps-4 fw-semibold">{{ product.factory_name }}&{{ product.name }}</td>
+                <td>
+                    <label class="product-image-upload" title="点击上传或更新产品图片">
+                        {% if product.image %}
+                        <img class="product-thumb" src="{{ url_for('static', filename='images/' + product.image) }}" alt="{{ product.name }}" loading="lazy">
+                        {% else %}
+                        <span class="product-thumb d-grid place-items-center text-muted small">点击上传</span>
+                        {% endif %}
+                        <input class="visually-hidden" type="file" accept=".jpg,.jpeg,.png,.gif,.webp" data-image-upload="{{ url_for('upload_product_image', product_id=product.id) }}" aria-label="上传{{ product.name }}的产品图片">
+                    </label>
+                </td>
+                <td>
+                    <div class="sku-list">
+                        <div class="sku-entries">
+                        {% for sku in product.sku_rows %}
+                        <div class="sku-line">
+                            <span contenteditable="true" data-edit-url="{{ url_for('update_sku', sku_id=sku.sku_id) }}">{{ sku.sku_name }}</span>
+                            <button class="icon-btn danger ms-2" type="button" aria-label="删除 SKU {{ sku.sku_name }}" title="删除 SKU" data-delete-sku="{{ url_for('delete_sku', sku_id=sku.sku_id) }}" data-confirm="删除后，该 SKU 关联的订单会保留，但不再关联 SKU。确定删除？">×</button>
+                        </div>
+                        {% else %}
+                        <button class="btn btn-sm btn-outline-secondary sku-empty-add" type="button" aria-label="为 {{ product.factory_name }}&{{ product.name }} 添加 SKU">暂无 SKU · 点击添加</button>
+                        {% endfor %}
+                        </div>
+                        <form class="sku-add-form d-none" data-sku-add-url="{{ url_for('create_sku', product_id=product.id) }}">
+                            <input class="form-control form-control-sm" name="sku_name" placeholder="输入 SKU 名称" aria-label="输入 SKU 名称" required>
+                            <button class="btn btn-sm btn-outline-primary" type="submit">保存</button>
+                        </form>
+                        {% if product.sku_rows %}
+                        <button class="btn btn-sm btn-link p-0 mt-2 sku-add-toggle" type="button" aria-label="为 {{ product.factory_name }}&{{ product.name }} 添加 SKU">＋ 添加 SKU</button>
+                        {% endif %}
+                    </div>
+                </td>
+                <td class="text-end pe-4 text-nowrap">
+                    <button class="icon-btn" type="button" aria-label="上移" title="上移" data-action-url="{{ url_for('move_product', product_id=product.id) }}" data-direction="up">↑</button>
+                    <button class="icon-btn" type="button" aria-label="下移" title="下移" data-action-url="{{ url_for('move_product', product_id=product.id) }}" data-direction="down">↓</button>
+                    <button class="icon-btn danger" type="button" aria-label="删除" title="删除" data-action-url="{{ url_for('delete_product', product_id=product.id) }}" data-confirm="确定删除这个产品？">🗑</button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elif has_missing_images %}
+    <div class="empty-state"><div class="fw-semibold mb-1">没有缺图产品</div><div class="small">全部产品图片已经补齐。</div></div>
+    {% elif total_product_count %}
+    <div class="empty-state"><div class="fw-semibold mb-1">没有找到产品</div><div class="small">请尝试其他厂家或产品名称关键词。</div></div>
+    {% else %}
+    <div class="empty-state"><div class="fs-2 mb-2">▤</div><div class="fw-semibold mb-1">暂无产品</div><div class="small">当前没有产品记录。</div></div>
+    {% endif %}
+</section>
+<div class="editable-hint mt-3">提示：产品列表仅显示 SKU 信息；点击 SKU 名称可修改。</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const productForm = document.getElementById('productForm');
+    const productNameInput = document.getElementById('newProductName');
+    const newSkuList = document.getElementById('newSkuList');
+
+    document.getElementById('addSkuInput').addEventListener('click', () => {
+        const row = document.createElement('div');
+        row.className = 'new-sku-row';
+        const input = document.createElement('input');
+        input.className = 'form-control new-sku-input';
+        input.placeholder = '输入 SKU 名称';
+        input.required = true;
+        const remove = document.createElement('button');
+        remove.className = 'icon-btn danger remove-new-sku';
+        remove.type = 'button';
+        remove.setAttribute('aria-label', '删除 SKU');
+        remove.title = '删除 SKU';
+        remove.textContent = '×';
+        row.append(input, remove);
+        newSkuList.append(row);
+        input.focus();
+    });
+
+    newSkuList.addEventListener('click', (event) => {
+        const remove = event.target.closest('.remove-new-sku');
+        if (!remove) return;
+        const rows = newSkuList.querySelectorAll('.new-sku-row');
+        if (rows.length === 1) {
+            rows[0].querySelector('input').value = '';
+            return;
+        }
+        remove.closest('.new-sku-row').remove();
+    });
+
+    productForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+            const formData = new FormData();
+            formData.append('name', productNameInput.value);
+            formData.append('sku_names', JSON.stringify(
+                Array.from(newSkuList.querySelectorAll('.new-sku-input'), (input) => input.value)
+            ));
+            formData.append('image', document.getElementById('newProductImage').files[0]);
+            const response = await fetch('{{ url_for("create_product") }}', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || '保存产品失败');
+            window.location.href = result.factory_created
+                ? '{{ url_for("factorys") }}'
+                : window.location.href;
+        } catch (error) {
+            window.alert(error.message);
+        }
+    });
+
+    document.querySelectorAll('[data-delete-sku]').forEach((button) => {
+        button.addEventListener('click', async () => {
+            if (!window.confirm(button.dataset.confirm)) return;
+            button.disabled = true;
+            try {
+                await sendUpdate(button.dataset.deleteSku, {});
+                window.location.reload();
+            } catch (error) {
+                window.alert(error.message);
+                button.disabled = false;
+            }
+        });
+    });
+
+    document.querySelectorAll('.sku-add-toggle, .sku-empty-add').forEach((button) => {
+        button.addEventListener('click', () => {
+            const skuList = button.closest('.sku-list');
+            const form = skuList.querySelector('.sku-add-form');
+            const input = form.querySelector('input');
+            if (button.classList.contains('sku-empty-add')) button.remove();
+            form.classList.remove('d-none');
+            input.focus();
+        });
+    });
+
+    document.querySelectorAll('.sku-add-form').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const button = form.querySelector('button[type="submit"]');
+            button.disabled = true;
+            try {
+                await sendUpdate(form.dataset.skuAddUrl, {
+                    sku_name: form.elements.sku_name.value
+                });
+                window.location.reload();
+            } catch (error) {
+                window.alert(error.message);
+                button.disabled = false;
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-image-upload]').forEach((input) => {
+        input.addEventListener('change', async () => {
+            if (!input.files.length) return;
+            const formData = new FormData();
+            formData.append('image', input.files[0]);
+            input.disabled = true;
+            try {
+                const response = await fetch(input.dataset.imageUpload, { method: 'POST', body: formData });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || '图片上传失败');
+                window.location.reload();
+            } catch (error) {
+                window.alert(error.message);
+                input.disabled = false;
+                input.value = '';
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}我的工具{% endblock %} · DanTool</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <script>
+        const savedTheme = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-bs-theme', savedTheme === 'dark' ? 'dark' : 'light');
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #17233b;
+            --muted: #748099;
+            --line: #e7ebf2;
+            --accent: #4567e8;
+            --app-bg: #f5f7fb;
+            --surface: #fff;
+            --nav-link: #6b758b;
+            --nav-active-bg: #f0f3ff;
+            --table-head: #8992a5;
+            --table-divider: #edf0f5;
+            --field-border: #e1e6ef;
+            --editable-hover: #f5f7ff;
+            --icon-color: #68748a;
+            --icon-hover-bg: #f6f7ff;
+            --icon-danger-bg: #fff7f7;
+            --thumb-bg: #f4f6fa;
+        }
+        [data-bs-theme="dark"] {
+            --ink: #e6eaf2;
+            --muted: #a0abc0;
+            --line: #30394a;
+            --app-bg: #111722;
+            --surface: #1b2432;
+            --nav-link: #bac4d6;
+            --nav-active-bg: #29344a;
+            --table-head: #a0abc0;
+            --table-divider: #30394a;
+            --field-border: #3b465b;
+            --editable-hover: #29344a;
+            --icon-color: #bac4d6;
+            --icon-hover-bg: #29344a;
+            --icon-danger-bg: #3b2831;
+            --thumb-bg: #252f40;
+        }
+        body { background: var(--app-bg); color: var(--ink); }
+        .navbar { background: var(--surface); border-bottom: 1px solid var(--line); }
+        .navbar-brand { color: var(--ink); font-weight: 750; letter-spacing: -.03em; }
+        .navbar-brand-mark { display: inline-grid; place-items: center; width: 30px; height: 30px; margin-right: .45rem; color: #fff; background: var(--accent); border-radius: 9px; font-size: .85rem; }
+        .nav-link { color: var(--nav-link); padding: .65rem .85rem !important; border-radius: 9px; }
+        .nav-link.active, .nav-link:hover { color: var(--accent); background: var(--nav-active-bg); }
+        main.container { max-width: 1180px; min-height: calc(100vh - 135px); padding-top: 2rem; padding-bottom: 3rem; }
+        .page-heading { margin-bottom: 1.5rem; }
+        .page-heading h1 { font-size: 1.65rem; font-weight: 750; letter-spacing: -.04em; }
+        .page-heading p, .text-muted { color: var(--muted) !important; }
+        .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 5px 22px rgba(28, 43, 74, .035); }
+        .card-body { padding: 1.4rem; }
+        .form-control, .form-select { border-color: var(--field-border); border-radius: 9px; padding: .62rem .8rem; }
+        .form-control:focus, .form-select:focus { border-color: #9babf5; box-shadow: 0 0 0 .2rem rgba(69, 103, 232, .12); }
+        .btn { border-radius: 9px; font-weight: 600; }
+        .btn-primary { background: var(--accent); border-color: var(--accent); }
+        .table { --bs-table-bg: transparent; margin-bottom: 0; }
+        .table thead th { color: var(--table-head); font-size: .78rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; border-bottom-color: var(--line); white-space: nowrap; }
+        .table td { border-bottom-color: var(--table-divider); vertical-align: middle; }
+        [contenteditable="true"] { outline: none; border-radius: 6px; padding: .2rem .35rem; margin: -.2rem -.35rem; }
+        [contenteditable="true"]:hover { background: var(--editable-hover); }
+        [contenteditable="true"]:focus { background: var(--surface); box-shadow: 0 0 0 2px #cbd4ff; }
+        .editable-hint { color: var(--muted); font-size: .75rem; }
+        .icon-btn { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--icon-color); }
+        .icon-btn:hover { color: var(--accent); border-color: #cbd4ff; background: var(--icon-hover-bg); }
+        .icon-btn.danger:hover { color: #d64252; border-color: #ffd2d6; background: var(--icon-danger-bg); }
+        .product-thumb { width: 54px; height: 54px; border: 1px solid var(--line); border-radius: 9px; object-fit: cover; background: var(--thumb-bg); }
+        .upload-dropzone { border: 1.5px dashed var(--field-border); background: var(--surface); cursor: pointer; }
+        .upload-dropzone.is-dragging { border-color: var(--accent); background: var(--nav-active-bg); }
+        .empty-state { padding: 3rem 1rem; text-align: center; color: var(--muted); }
+        .alert { border: 0; border-radius: 12px; }
+        .metric-card { position: relative; overflow: hidden; min-height: 150px; }
+        .metric-card::after { position: absolute; content: ""; width: 110px; height: 110px; right: -25px; bottom: -40px; border-radius: 50%; background: rgba(69, 103, 232, .07); }
+        .metric-value { font-size: 2.4rem; line-height: 1; font-weight: 750; letter-spacing: -.05em; }
+        .print-controls { display: flex; gap: .5rem; }
+        @media print {
+            @page { size: A4 portrait; margin: 12mm; }
+            body { background: white !important; color: #000 !important; }
+            nav, footer, .no-print, .schedule-actions, .schedule-date-picker { display: none !important; }
+            main.container { max-width: none; min-height: 0; padding: 0 !important; margin: 0 !important; }
+            [contenteditable="true"] { padding: 0; margin: 0; box-shadow: none !important; background: transparent !important; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-label="切换导航">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navMenu">
+                <ul class="navbar-nav me-auto ms-lg-3">
+                    {% set nav_items = [
+                        ('index', '首页', 'index'),
+                        ('factorys', '厂家', 'factorys'),
+                        ('products', '产品', 'products'),
+                        ('today', '排单', 'today'),
+                        ('dashboard', '统计图', 'dashboard')
+                    ] %}
+                    {% for endpoint, label, active_endpoint in nav_items %}
+                    <li class="nav-item"><a class="nav-link {% if request.endpoint == active_endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}">{{ label }}</a></li>
+                    {% endfor %}
+                </ul>
+                <div class="form-check form-switch text-muted">
+                    <input class="form-check-input" type="checkbox" id="themeSwitch">
+                    <label class="form-check-label small" for="themeSwitch">深色模式</label>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show mb-4" role="alert">
+                    {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="关闭"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="container py-3 text-center text-muted small no-print">DanTool · 排单管理</footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const themeSwitch = document.getElementById('themeSwitch');
+        themeSwitch.checked = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        themeSwitch.addEventListener('change', () => {
+            const theme = themeSwitch.checked ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+        });
+
+        async function sendUpdate(url, payload) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || '保存失败');
+            return result;
+        }
+
+        document.querySelectorAll('[data-edit-url]').forEach((field) => {
+            field.addEventListener('blur', async () => {
+                if (field.dataset.original === field.innerText.trim()) return;
+                try {
+                    const result = await sendUpdate(field.dataset.editUrl, {
+                        field: field.dataset.field,
+                        value: field.innerText.trim()
+                    });
+                    field.textContent = result.value;
+                    field.dataset.original = field.innerText.trim();
+                    field.classList.remove('text-danger');
+                    if (field.dataset.reloadAfterEdit === 'true') {
+                        window.location.reload();
+                        return;
+                    }
+                } catch (error) {
+                    field.classList.add('text-danger');
+                    window.alert(error.message);
+                }
+            });
+            field.addEventListener('focus', () => {
+                field.dataset.original = field.innerText.trim();
+            });
+            if (!field.dataset.original) field.dataset.original = field.innerText.trim();
+        });
+        document.querySelectorAll('[contenteditable="true"]').forEach((field) => {
+            field.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    field.blur();
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-action-url]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                if (button.dataset.confirm && !window.confirm(button.dataset.confirm)) return;
+                try {
+                    await sendUpdate(button.dataset.actionUrl, {
+                        direction: button.dataset.direction
+                    });
+                    if (button.dataset.reload !== 'false') window.location.reload();
+                    else button.closest('[data-product-row]')?.remove();
+                } catch (error) {
+                    window.alert(error.message);
+                }
+            });
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

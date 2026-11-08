@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}首页{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="text-uppercase small fw-bold text-primary mb-2">DANTOOL WORKSPACE</div>
+    <h1>欢迎回来</h1>
+    <p class="mb-0">导入商品排单表，快速整理每日拿货清单。</p>
+</div>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <section class="card h-100">
+            <div class="card-body p-lg-4">
+                <h2 class="h5 fw-bold mb-1">导入排单表</h2>
+                <p class="text-muted small mb-4">支持 Excel（.xlsx、.xlsm）和 CSV 文件，导入完成后将自动进入产品列表。</p>
+                <form method="post" enctype="multipart/form-data">
+                    <label class="upload-dropzone d-flex flex-column align-items-center justify-content-center rounded-4 p-5 mb-3 text-center" for="uploadFile">
+                        <span class="d-grid place-items-center rounded-circle bg-primary-subtle text-primary fw-bold mb-3" style="width: 48px; height: 48px;">↑</span>
+                        <strong class="mb-1">点击选择文件，或拖放到此处</strong>
+                        <span class="text-muted small">单个文件最大 16 MB</span>
+                        <input class="visually-hidden" id="uploadFile" name="file" type="file" accept=".xlsx,.xlsm,.csv" required>
+                    </label>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <span class="small text-muted" id="selectedFile">请选择文件</span>
+                        <button class="btn btn-primary px-4" type="submit">上传并执行</button>
+                    </div>
+                </form>
+                <div class="mt-4 p-3 rounded-3 bg-body-tertiary">
+                    <div class="small fw-semibold mb-1">表格必需列</div>
+                    <div class="small text-muted">商品编码、销售属性、数量。商品编码格式：厂家名称&amp;商品名称。</div>
+                </div>
+            </div>
+        </section>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <div class="text-primary fw-bold small mb-2">快速开始</div>
+                <h2 class="h5 fw-bold mb-3">完善导入信息</h2>
+                <p class="text-muted small">导入表格不包含厂家地址和产品图片，可在下方查看并补充缺失信息。</p>
+                <div class="d-grid gap-2 mt-4">
+                    <a class="btn btn-outline-danger" href="{{ url_for('factorys', missing_address=1) }}">还有 {{ missing_address_count }} 个厂家没有地址信息</a>
+                    <a class="btn btn-outline-danger" href="{{ url_for('products', missing_image=1) }}">还有 {{ missing_image_count }} 个产品没有图片</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const uploadInput = document.getElementById('uploadFile');
+    const selectedFile = document.getElementById('selectedFile');
+    const dropTarget = uploadInput.closest('label');
+    uploadInput.addEventListener('change', () => {
+        selectedFile.textContent = uploadInput.files.length ? uploadInput.files[0].name : '请选择文件';
+    });
+    dropTarget.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropTarget.classList.add('is-dragging');
+    });
+    dropTarget.addEventListener('dragleave', () => {
+        dropTarget.classList.remove('is-dragging');
+    });
+    dropTarget.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dropTarget.classList.remove('is-dragging');
+        if (event.dataTransfer.files.length) {
+            uploadInput.files = event.dataTransfer.files;
+            uploadInput.dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+{% endblock %}

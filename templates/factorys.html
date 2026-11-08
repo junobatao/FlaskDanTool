@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}厂家{% endblock %}
+
+{% block extra_css %}
+<style>
+    .factory-address:empty { display: inline-block; min-width: 10em; min-height: 1.5em; }
+    .factory-address:empty::before { content: attr(data-placeholder); color: var(--muted); cursor: text; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-heading d-flex align-items-end justify-content-between gap-3 flex-wrap">
+    <div><h1>厂家</h1><p class="mb-0">维护厂家名称、地址及排单显示顺序。</p></div>
+    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addFactory">＋ 新增厂家</button>
+</div>
+<section class="collapse mb-4" id="addFactory">
+    <div class="card"><div class="card-body">
+        <form id="factoryForm" class="row g-2 align-items-end">
+            <div class="col-md-5"><label class="form-label small fw-semibold" for="newName">名称</label><input class="form-control" id="newName" required></div>
+            <div class="col-md-5"><label class="form-label small fw-semibold" for="newAddress">地址</label><input class="form-control" id="newAddress"></div>
+            <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">保存厂家</button></div>
+        </form>
+    </div></div>
+</section>
+{% if has_missing_addresses %}
+<div class="alert alert-warning mb-4" role="status">
+    <div class="fw-semibold">还有 {{ missing_address_count }} 个厂家没有地址信息</div>
+    <div class="small">请补全列表中的厂家地址；全部填写后将自动显示完整厂家列表。</div>
+</div>
+{% elif total_factory_count %}
+<section class="card mb-4"><div class="card-body">
+    <form class="row g-2" method="get">
+        <div class="col-md-9"><label class="visually-hidden" for="factoryQuery">搜索厂家</label><input class="form-control" id="factoryQuery" name="q" value="{{ query }}" placeholder="输入名称或地址关键字"></div>
+        <div class="col-md-3 d-flex gap-2"><button class="btn btn-primary flex-grow-1" type="submit">搜索</button><a class="btn btn-light" href="{{ url_for('factorys') }}">重置</a></div>
+    </form>
+</div></section>
+{% endif %}
+<section class="card overflow-hidden">
+    {% if factorys %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead><tr><th class="ps-4">名称</th><th>地址</th><th class="text-end pe-4">操作</th></tr></thead>
+            <tbody>
+            {% for factory in factorys %}
+            <tr>
+                <td class="ps-4 fw-semibold"><span contenteditable="true" data-edit-url="{{ url_for('update_factory', factory_id=factory.id) }}" data-field="name">{{ factory.name }}</span></td>
+                <td>
+                    <span class="factory-address" contenteditable="true" data-edit-url="{{ url_for('update_factory', factory_id=factory.id) }}" data-field="address" data-placeholder="点击填写地址信息" data-reload-after-edit="true">{{ factory.address }}</span>
+                </td>
+                <td class="text-end pe-4 text-nowrap">
+                    <button class="icon-btn" type="button" aria-label="上移" title="上移" data-action-url="{{ url_for('move_factory', factory_id=factory.id) }}" data-direction="up">↑</button>
+                    <button class="icon-btn" type="button" aria-label="下移" title="下移" data-action-url="{{ url_for('move_factory', factory_id=factory.id) }}" data-direction="down">↓</button>
+                    <button class="icon-btn danger" type="button" aria-label="删除" title="删除" data-action-url="{{ url_for('delete_factory', factory_id=factory.id) }}" data-confirm="删除厂家会同时删除关联商品和订单，确定删除？">🗑</button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elif has_missing_addresses %}
+    <div class="empty-state"><div class="fw-semibold mb-1">没有缺少地址的厂家</div><div class="small">全部厂家地址信息已经补齐。</div></div>
+    {% elif total_factory_count %}
+    <div class="empty-state"><div class="fw-semibold mb-1">没有找到厂家</div><div class="small">请尝试其他搜索关键字。</div></div>
+    {% else %}
+    <div class="empty-state"><div class="fs-2 mb-2">⌂</div><div class="fw-semibold mb-1">没有找到厂家</div><div class="small">可以新增厂家，或尝试其他搜索关键字。</div></div>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('factoryForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+            await sendUpdate('{{ url_for("create_factory") }}', {
+                name: document.getElementById('newName').value,
+                address: document.getElementById('newAddress').value
+            });
+            window.location.reload();
+        } catch (error) {
+            window.alert(error.message);
+        }
+    });
+</script>
+{% endblock %}
