@@ -10,22 +10,38 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+from flask import Flask, flash, jsonify, redirect, render_template, request, url_for , session
 from dotenv import load_dotenv
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField
+from wtforms.validators import DataRequired, Length
+
 
 # 加载 .env 文件，放在最前面！
 load_dotenv()
 
 app = Flask(__name__)
-
 # 从环境变量读取配置
-# app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI")
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["DATABASE_URI"] = os.getenv("DATABASE_URI")
+
+
+# curl.exe -i -X GET http://127.0.0.1:5000/debug?name=TJ 
+# curl.exe -i -X POST http://127.0.0.1:5000/debug -H "Content-Type: application/json" -d '{\"name\": \"taojun\"}' 
+# curl.exe -i -X PUT http://127.0.0.1:5000/debug -F "name=taojun"
+@app.route('/debug', methods=['GET', 'POST'])
+def debug():
+    # form = MyForm()
+    # if form.validate_on_submit():
+    #     name = form.name.data
+    #     email = form.email.data
+    #     return f'Name: {name}, Email: {email}'
+    return render_template('debug.html')
 
 
 @contextmanager
 def get_db():
-    connection = sqlite3.connect(app.config['SQLALCHEMY_DATABASE_URI'])
+    connection = sqlite3.connect(app.config['DATABASE_URI'])
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     try:
@@ -330,6 +346,7 @@ def factorys():
                    ORDER BY sort_num, id""",
                 (f"%{query}%", f"%{query}%"),
             ).fetchall()
+    
     return render_template(
         "factorys.html",
         factorys=rows,
