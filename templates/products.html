@@ -63,11 +63,21 @@
     <div class="table-responsive">
         <table class="table align-middle">
             <thead>
-                <tr><th class="ps-4">厂家&产品名称</th><th>今日订单</th><th>图片</th><th class="text-end pe-4">操作</th></tr>
+                <tr><th>商品图片</th><th class="ps-4">商品编码</th><th>今日订单</th><th class="text-end pe-4">操作</th></tr>
             </thead>
             <tbody>
             {% for product in products %}
             <tr data-product-row data-product-id="{{ product.id }}">
+                <td>
+                    <label class="product-image-upload" title="点击上传或更新产品图片">
+                        {% if product.image %}
+                        <img class="product-thumb" src="{{ url_for('static', filename='images/' + product.image) }}" alt="{{ product.name }}" loading="lazy">
+                        {% else %}
+                        <span class="product-thumb d-grid place-items-center text-muted small">点击上传</span>
+                        {% endif %}
+                        <input type="file" id="productImage{{ product.id }}" class="visually-hidden" accept=".jpg,.jpeg,.png,.gif,.webp" data-image-upload="{{ url_for('upload_product_image', product_id=product.id) }}" aria-label="上传{{ product.name }}的产品图片">
+                    </label>
+                </td>
                 <td class="ps-4 fw-semibold">{{ product.factory_name }}&<span contenteditable="true" data-edit-url="{{ url_for('update_product', product_id=product.id) }}" data-field="name">{{ product.name }}</span></td>
                 <td class="today-order-cell">
                     {% for order in product.today_orders %}
@@ -81,16 +91,6 @@
                         <button class="btn btn-sm btn-primary" type="submit">保存今日排单</button>
                     </form>
                     {% endif %}
-                </td>
-                <td>
-                    <label class="product-image-upload" title="点击上传或更新产品图片">
-                        {% if product.image %}
-                        <img class="product-thumb" src="{{ url_for('static', filename='images/' + product.image) }}" alt="{{ product.name }}" loading="lazy">
-                        {% else %}
-                        <span class="product-thumb d-grid place-items-center text-muted small">点击上传</span>
-                        {% endif %}
-                        <input type="file" id="productImage{{ product.id }}" class="visually-hidden" accept=".jpg,.jpeg,.png,.gif,.webp" data-image-upload="{{ url_for('upload_product_image', product_id=product.id) }}" aria-label="上传{{ product.name }}的产品图片">
-                    </label>
                 </td>
                 <td class="text-end pe-4 text-nowrap">
                     <button class="icon-btn danger" type="button" aria-label="删除" title="删除" data-action-url="{{ url_for('delete_product', product_id=product.id) }}" data-confirm="确定删除这个产品？">🗑</button>
