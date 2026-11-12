@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}排单{% endblock %}
+{% block title %}预览{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -21,75 +21,47 @@
     .schedule-summary strong { color: #283a62; font-size: 13px; }
     .schedule-factory { margin-top: 16px; }
     .schedule-factory:first-of-type { margin-top: 0; }
-    .schedule-vendor { display: flex; align-items: baseline; gap: 8px; padding: 7px 10px; background: #f1f4f9; border-left: 3px solid #526b9f; }
+    .schedule-vendor { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #f1f4f9; border-left: 3px solid #526b9f; }
     .schedule-vendor-name { color: #263652; font-size: 13px; font-weight: 700; }
     .schedule-vendor-address { color: #77839a; font-size: 10px; }
-    .schedule-column-head, .schedule-line { display: grid; grid-template-columns: minmax(0, 1fr) 82px 30px; align-items: center; }
-    .schedule-column-head { padding: 5px 10px; color: #8992a5; font-size: 9px; font-weight: 700; letter-spacing: .08em; }
-    .schedule-column-head span:last-child { text-align: center; }
-    .schedule-line { min-height: 43px; padding: 6px 10px; border-bottom: 1px solid #edf0f5; break-inside: avoid; }
+    .schedule-line { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 58px; padding: 6px 10px; border-bottom: 1px solid #edf0f5; break-inside: avoid; }
+    .schedule-product-thumb { width: 44px; height: 44px; border: 1px solid #e3e7ef; border-radius: 6px; object-fit: cover; background: #f4f6fa; }
     .schedule-content { min-width: 0; }
     .schedule-product { overflow-wrap: anywhere; color: #29364d; font-size: 11px; font-weight: 600; }
-    .schedule-sku { margin-top: 2px; color: #78849a; font-size: 10px; }
-    .schedule-sku [contenteditable="true"], .schedule-quantity[contenteditable="true"] { border-radius: 3px; }
-    .schedule-sku [contenteditable="true"]:focus, .schedule-quantity[contenteditable="true"]:focus { background: #fff; box-shadow: 0 0 0 2px #cbd4ff; }
-    .schedule-quantity-cell { display: flex; align-items: baseline; justify-content: center; gap: 4px; white-space: nowrap; }
-    .schedule-quantity { color: #24395f; font-size: 17px; font-weight: 750; }
-    .schedule-unit { color: #8992a5; font-size: 9px; }
+    .schedule-order-content { margin-top: 2px; color: #78849a; font-size: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
     .schedule-empty { padding: 28px 12px; text-align: center; color: #77839a; font-size: 12px; }
     @media print {
         @page { size: A4 portrait; margin: 10mm; }
         .schedule-sheet { width: 100%; max-width: none; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
-        .schedule-header { padding-bottom: 10px; }
-        .schedule-title { font-size: 20px; }
-        .schedule-summary { margin: 8px 0 12px; }
-        .schedule-factory { margin-top: 10px; }
-        .schedule-column-head, .schedule-line { grid-template-columns: minmax(0, 1fr) 82px; }
-        .schedule-vendor { padding: 5px 8px; background: #f1f4f9 !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-        .schedule-line { min-height: 34px; padding: 4px 8px; }
-        .schedule-product { font-size: 10px; }
-        .schedule-sku { font-size: 9px; }
-        .schedule-quantity { font-size: 15px; }
+        .schedule-header { padding-bottom: 12px; }
+        .schedule-title { font-size: 28px; }
+        .schedule-date { font-size: 17px; }
+        .schedule-summary { margin: 12px 0 16px; font-size: 16px; }
+        .schedule-summary strong { font-size: 18px; }
+        .schedule-factory { margin-top: 12px; }
+        .schedule-vendor { padding: 8px 11px; background: #f1f4f9 !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        .schedule-vendor-name { font-size: 19px; }
+        .schedule-vendor-address { font-size: 15px; }
+        .schedule-line { min-height: 64px; padding: 6px 11px; }
+        .schedule-product-thumb { width: 50px; height: 50px; }
+        .schedule-product { font-size: 16px; }
+        .schedule-order-content { font-size: 15px; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-heading d-flex align-items-end justify-content-between gap-3 flex-wrap no-print">
-    <div><h1>排单</h1><p class="mb-0">查看今日订单，编辑 SKU 和件数后打印 A4 清单。</p></div>
+    <div><h1>预览</h1><p class="mb-0">查看今日排单并打印 A4 清单。</p></div>
     <div class="print-controls">
-        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addOrder">＋ 新增订单</button>
         <button class="btn btn-primary" type="button" onclick="window.print()">打印 A4</button>
     </div>
 </div>
-<section class="collapse mb-4 no-print" id="addOrder">
-    <div class="card"><div class="card-body">
-        <form id="orderForm" class="row g-2 align-items-end">
-            <div class="col-lg-5">
-                <label class="form-label small fw-semibold" for="orderProductSearch">商品</label>
-                <div class="position-relative">
-                    <input class="form-control" id="orderProductSearch" autocomplete="off" placeholder="输入厂家&产品，或厂家 / 产品名称" aria-describedby="orderProductSearchHelp">
-                    <input id="orderProductId" type="hidden">
-                    <div class="list-group position-absolute top-100 start-0 w-100 shadow d-none" id="orderProductSearchResults" style="z-index: 20" aria-live="polite"></div>
-                </div>
-            </div>
-            <div class="col-lg-3">
-                <label class="form-label small fw-semibold" for="orderSku">SKU</label>
-                <select class="form-select" id="orderSku">
-                    <option value="">不指定 SKU</option>
-                </select>
-            </div>
-            <div class="col-lg-4"><label class="form-label small fw-semibold" for="orderQuantity">件数</label><input class="form-control" id="orderQuantity" type="number" min="0" value="1" required></div>
-            <div class="col-12 text-end"><button class="btn btn-primary" type="submit">保存订单</button></div>
-        </form>
-    </div></div>
-</section>
 <section class="schedule-sheet">
-    {% set totals = namespace(order_count=0, piece_count=0) %}
+    {% set totals = namespace(order_count=0) %}
     {% for group in groups %}
         {% for order in group.orders %}
             {% set totals.order_count = totals.order_count + 1 %}
-            {% set totals.piece_count = totals.piece_count + (order.quantity | int) %}
         {% endfor %}
     {% endfor %}
     <header class="schedule-header">
@@ -98,8 +70,7 @@
     </header>
     <div class="schedule-summary">
         <span>厂家 <strong>{{ groups|length }}</strong></span>
-        <span>商品 <strong>{{ totals.order_count }}</strong></span>
-        <span>总件数 <strong>{{ totals.piece_count }}</strong></span>
+        <span>排单商品 <strong>{{ totals.order_count }}</strong></span>
     </div>
     {% if groups %}
         {% for group in groups %}
@@ -108,110 +79,23 @@
                 <span class="schedule-vendor-name">{{ group.factory.name }}</span>
                 {% if group.factory.address %}<span class="schedule-vendor-address">{{ group.factory.address }}</span>{% endif %}
             </div>
-            <div class="schedule-column-head"><span>商品 / 规格</span><span>数量</span></div>
             {% for order in group.orders %}
-            <div class="schedule-line" data-product-row>
+            <div class="schedule-line">
+                {% if order.image %}
+                <img class="schedule-product-thumb" src="{{ url_for('static', filename='images/' + order.image) }}" alt="{{ order.product_name }}" loading="lazy">
+                {% else %}
+                <span aria-hidden="true"></span>
+                {% endif %}
                 <div class="schedule-content">
                     <div class="schedule-product">{{ order.product_name }}</div>
-                    <div class="schedule-sku">
-                        {% if order.sku_id %}
-                        <span contenteditable="true" data-edit-url="{{ url_for('update_sku', sku_id=order.sku_id) }}">{{ order.sku_name }}</span>
-                        {% else %}<span>未指定规格</span>{% endif %}
-                    </div>
+                    <div class="schedule-order-content">{{ order.order_content }}</div>
                 </div>
-                <div class="schedule-quantity-cell">
-                    <span class="schedule-quantity" contenteditable="true" data-edit-url="{{ url_for('update_order', order_id=order.order_id) }}" data-field="quantity">{{ order.quantity }}</span>
-                    <span class="schedule-unit">件</span>
-                </div>
-                <button class="icon-btn danger no-print" type="button" aria-label="删除订单" title="删除订单" data-action-url="{{ url_for('delete_order', order_id=order.order_id) }}" data-confirm="确定删除这条订单？" data-reload="false">🗑</button>
             </div>
             {% endfor %}
         </section>
         {% endfor %}
     {% else %}
-        <div class="schedule-empty no-print">这一天还没有排单。请先添加商品订单，再打印清单。<br><a class="btn btn-sm btn-primary mt-3" href="{{ url_for('products') }}">前往产品页面</a></div>
+        <div class="schedule-empty no-print">这一天还没有排单。可前往产品页面添加今日排单。<br><a class="btn btn-sm btn-primary mt-3" href="{{ url_for('products') }}">前往产品页面</a></div>
     {% endif %}
 </section>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    const orderProducts = {{ product_choices|tojson }};
-    const orderProductSearch = document.getElementById('orderProductSearch');
-    const orderProductId = document.getElementById('orderProductId');
-    const orderProductSearchResults = document.getElementById('orderProductSearchResults');
-    const orderSkuSelect = document.getElementById('orderSku');
-
-    function updateOrderSkuChoices(product) {
-        orderSkuSelect.replaceChildren(new Option('不指定 SKU', ''));
-        product.skus.forEach((sku) => {
-            orderSkuSelect.add(new Option(sku.sku_name, sku.id));
-        });
-    }
-
-    function searchOrderProducts() {
-        const query = orderProductSearch.value.trim().toLocaleLowerCase();
-        orderProductId.value = '';
-        orderSkuSelect.replaceChildren(new Option('不指定 SKU', ''));
-        orderProductSearchResults.replaceChildren();
-        orderProductSearchResults.classList.add('d-none');
-        if (!query) return;
-
-        const parts = query.split(/[&＆]/, 2).map((part) => part.trim());
-        const matches = orderProducts.filter((product) => {
-            const factory = product.factory_name.toLocaleLowerCase();
-            const name = product.name.toLocaleLowerCase();
-            return parts.length === 2
-                ? factory.includes(parts[0]) && name.includes(parts[1])
-                : factory.includes(query) || name.includes(query);
-        });
-
-        if (!matches.length) {
-            const message = document.createElement('div');
-            message.className = 'list-group-item small text-muted';
-            message.textContent = '没有找到产品，请前往产品页面添加。';
-            const link = document.createElement('a');
-            link.className = 'list-group-item list-group-item-action small';
-            link.href = '{{ url_for("products") }}';
-            link.textContent = '打开产品页面';
-            orderProductSearchResults.append(message, link);
-        } else {
-            matches.slice(0, 10).forEach((product) => {
-                const option = document.createElement('button');
-                option.className = 'list-group-item list-group-item-action';
-                option.type = 'button';
-                option.textContent = `${product.factory_name}&${product.name}`;
-                option.addEventListener('click', () => {
-                    orderProductSearch.value = option.textContent;
-                    orderProductId.value = product.id;
-                    updateOrderSkuChoices(product);
-                    orderProductSearchResults.classList.add('d-none');
-                });
-                orderProductSearchResults.append(option);
-            });
-        }
-        orderProductSearchResults.classList.remove('d-none');
-    }
-
-    orderProductSearch.addEventListener('input', searchOrderProducts);
-
-    document.getElementById('orderForm').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        if (!orderProductId.value) {
-            window.alert('请先搜索并选择产品；如果没有找到，请前往产品页面添加。');
-            orderProductSearch.focus();
-            return;
-        }
-        try {
-            await sendUpdate('{{ url_for("create_order") }}', {
-                product_id: orderProductId.value,
-                sku_id: document.getElementById('orderSku').value,
-                quantity: document.getElementById('orderQuantity').value
-            });
-            window.location.href = '{{ url_for("today") }}';
-        } catch (error) {
-            window.alert(error.message);
-        }
-    });
-</script>
 {% endblock %}

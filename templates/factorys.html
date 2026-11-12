@@ -5,6 +5,11 @@
 <style>
     .factory-address:empty { display: inline-block; min-width: 10em; min-height: 1.5em; }
     .factory-address:empty::before { content: attr(data-placeholder); color: var(--muted); cursor: text; }
+    .factory-drag-handle { cursor: grab; touch-action: none; }
+    .factory-drag-handle:active { cursor: grabbing; }
+    .factory-row-dragging { opacity: .4; }
+    .factory-row-drop-before td { border-top: 2px solid var(--accent) !important; }
+    .factory-row-drop-after td { border-bottom: 2px solid var(--accent) !important; }
 </style>
 {% endblock %}
 
@@ -15,9 +20,10 @@
 </div>
 <section class="collapse mb-4" id="addFactory">
     <div class="card"><div class="card-body">
-        <form id="factoryForm" class="row g-2 align-items-end">
-            <div class="col-md-5"><label class="form-label small fw-semibold" for="newName">名称</label><input class="form-control" id="newName" required></div>
-            <div class="col-md-5"><label class="form-label small fw-semibold" for="newAddress">地址</label><input class="form-control" id="newAddress"></div>
+        <form id="factoryForm" class="row g-2 align-items-end needs-validation" action="{{ url_for('create_factory') }}" method="post" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-md-5"><label class="form-label small fw-semibold" for="newName">名称</label><input class="form-control" id="newName" name="name" required><div class="invalid-feedback">厂家名称不能为空</div></div>
+            <div class="col-md-5"><label class="form-label small fw-semibold" for="newAddress">地址</label><input class="form-control" id="newAddress" name="address"></div>
             <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">保存厂家</button></div>
         </form>
     </div></div>
@@ -39,17 +45,20 @@
     {% if factorys %}
     <div class="table-responsive">
         <table class="table align-middle">
-            <thead><tr><th class="ps-4">名称</th><th>地址</th><th class="text-end pe-4">操作</th></tr></thead>
-            <tbody>
+            <thead><tr><th class="ps-3">顺序</th><th>名称</th><th>地址</th><th class="text-end pe-4">操作</th></tr></thead>
+            <tbody id="factoryList" data-reorder-enabled="{{ 'true' if reorder_enabled else 'false' }}">
             {% for factory in factorys %}
-            <tr>
+            <tr data-factory-id="{{ factory.id }}">
+                <td class="ps-3 text-nowrap">
+                    {% if reorder_enabled %}
+                    <button class="icon-btn factory-drag-handle" type="button" draggable="true" aria-label="拖动调整{{ factory.name }}顺序" title="按住拖动排序">⠿</button>
+                    {% endif %}
+                </td>
                 <td class="ps-4 fw-semibold"><span contenteditable="true" data-edit-url="{{ url_for('update_factory', factory_id=factory.id) }}" data-field="name">{{ factory.name }}</span></td>
                 <td>
-                    <span class="factory-address" contenteditable="true" data-edit-url="{{ url_for('update_factory', factory_id=factory.id) }}" data-field="address" data-placeholder="点击填写地址信息" data-reload-after-edit="true">{{ factory.address }}</span>
+                    <span class="factory-address" contenteditable="true" data-edit-url="{{ url_for('update_factory', factory_id=factory.id) }}" data-field="address" data-placeholder="点击填写地址信息" data-reload-after-edit="true"{% if factory.id == after_address_factory_id %} data-redirect-url="{{ after_address_redirect_url }}"{% endif %}>{{ factory.address }}</span>
                 </td>
                 <td class="text-end pe-4 text-nowrap">
-                    <button class="icon-btn" type="button" aria-label="上移" title="上移" data-action-url="{{ url_for('move_factory', factory_id=factory.id) }}" data-direction="up">↑</button>
-                    <button class="icon-btn" type="button" aria-label="下移" title="下移" data-action-url="{{ url_for('move_factory', factory_id=factory.id) }}" data-direction="down">↓</button>
                     <button class="icon-btn danger" type="button" aria-label="删除" title="删除" data-action-url="{{ url_for('delete_factory', factory_id=factory.id) }}" data-confirm="删除厂家会同时删除关联商品和订单，确定删除？">🗑</button>
                 </td>
             </tr>
@@ -65,12 +74,76 @@
     <div class="empty-state"><div class="fs-2 mb-2">⌂</div><div class="fw-semibold mb-1">没有找到厂家</div><div class="small">可以新增厂家，或尝试其他搜索关键字。</div></div>
     {% endif %}
 </section>
+{% if factorys and reorder_enabled %}
+<div class="editable-hint mt-3">按住每行左侧的拖动手柄，可跨多行拖动厂家并调整顺序。</div>
+{% elif factorys %}
+<div class="editable-hint mt-3">请先完成厂家地址信息或清除搜索条件，再拖动调整厂家顺序。</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    const factoryList = document.getElementById('factoryList');
+    if (factoryList?.dataset.reorderEnabled === 'true') {
+        let draggedRow = null;
+        let originalRows = [];
+
+        factoryList.addEventListener('dragstart', (event) => {
+            const handle = event.target.closest('.factory-drag-handle');
+            if (!handle) {
+                event.preventDefault();
+                return;
+            }
+            draggedRow = handle.closest('tr');
+            originalRows = Array.from(factoryList.querySelectorAll('tr'));
+            draggedRow.classList.add('factory-row-dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', draggedRow.dataset.factoryId);
+        });
+
+        factoryList.addEventListener('dragover', (event) => {
+            if (!draggedRow) return;
+            const targetRow = event.target.closest('tr[data-factory-id]');
+            if (!targetRow || targetRow === draggedRow) return;
+            event.preventDefault();
+            const bounds = targetRow.getBoundingClientRect();
+            const insertAfter = event.clientY >= bounds.top + bounds.height / 2;
+            targetRow.classList.toggle('factory-row-drop-before', !insertAfter);
+            targetRow.classList.toggle('factory-row-drop-after', insertAfter);
+            factoryList.insertBefore(draggedRow, insertAfter ? targetRow.nextSibling : targetRow);
+        });
+
+        factoryList.addEventListener('dragleave', (event) => {
+            const targetRow = event.target.closest('tr[data-factory-id]');
+            targetRow?.classList.remove('factory-row-drop-before', 'factory-row-drop-after');
+        });
+
+        factoryList.addEventListener('drop', async (event) => {
+            if (!draggedRow) return;
+            event.preventDefault();
+            const previousOrder = [...originalRows];
+            const rows = Array.from(factoryList.querySelectorAll('tr[data-factory-id]'));
+            try {
+                await sendUpdate('{{ url_for("reorder_factorys") }}', {
+                    factory_ids: rows.map((row) => Number(row.dataset.factoryId))
+                });
+            } catch (error) {
+                previousOrder.forEach((row) => factoryList.append(row));
+                window.alert(error.message);
+            }
+        });
+
+        factoryList.addEventListener('dragend', () => {
+            factoryList.querySelectorAll('.factory-row-dragging, .factory-row-drop-before, .factory-row-drop-after')
+                .forEach((row) => row.classList.remove('factory-row-dragging', 'factory-row-drop-before', 'factory-row-drop-after'));
+            draggedRow = null;
+            originalRows = [];
+        });
+    }
+
     document.getElementById('factoryForm').addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (!validateForm(event.currentTarget)) return;
         try {
             await sendUpdate('{{ url_for("create_factory") }}', {
                 name: document.getElementById('newName').value,

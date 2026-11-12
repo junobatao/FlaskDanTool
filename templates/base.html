@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}我的工具{% endblock %} · DanTool</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script>
@@ -103,8 +104,8 @@
                         ('index', '首页', 'index'),
                         ('factorys', '厂家', 'factorys'),
                         ('products', '产品', 'products'),
-                        ('today', '排单', 'today'),
-                        ('dashboard', '统计图', 'dashboard')
+                        ('today', '预览', 'today'),
+                        ('dashboard', '数据看板', 'dashboard')
                     ] %}
                     {% for endpoint, label, active_endpoint in nav_items %}
                     <li class="nav-item"><a class="nav-link {% if request.endpoint == active_endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}">{{ label }}</a></li>
@@ -144,13 +145,30 @@
         async function sendUpdate(url, payload) {
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
                 body: JSON.stringify(payload)
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || '保存失败');
             return result;
         }
+
+        function validateForm(form) {
+            form.classList.add('was-validated');
+            return form.checkValidity();
+        }
+
+        document.querySelectorAll('.needs-validation').forEach((form) => {
+            form.addEventListener('submit', (event) => {
+                if (!validateForm(form)) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                }
+            });
+        });
 
         document.querySelectorAll('[data-edit-url]').forEach((field) => {
             field.addEventListener('blur', async () => {
@@ -163,6 +181,10 @@
                     field.textContent = result.value;
                     field.dataset.original = field.innerText.trim();
                     field.classList.remove('text-danger');
+                    if (field.dataset.redirectUrl) {
+                        window.location.href = field.dataset.redirectUrl;
+                        return;
+                    }
                     if (field.dataset.reloadAfterEdit === 'true') {
                         window.location.reload();
                         return;

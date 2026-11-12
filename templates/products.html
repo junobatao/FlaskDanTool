@@ -6,42 +6,30 @@
     .product-image-upload { position: relative; display: inline-flex; cursor: pointer; }
     .product-image-upload:hover .product-thumb { outline: 2px solid #9babf5; }
     .product-image-upload:focus-within .product-thumb { outline: 2px solid #4567e8; }
-    .sku-list { min-width: 180px; }
-    .sku-line + .sku-line { margin-top: .3rem; padding-top: .3rem; border-top: 1px solid var(--table-divider); }
-    .new-sku-row { display: flex; gap: .5rem; align-items: center; }
-    .sku-add-form { display: flex; gap: .4rem; margin-top: .5rem; }
-    .sku-add-form .form-control { min-width: 0; padding: .35rem .55rem; }
-    .sku-add-form .btn { flex: 0 0 auto; }
+    .today-order-cell { min-width: 250px; }
+    .today-order-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .today-order-content + .today-order-content { margin-top: .4rem; padding-top: .4rem; border-top: 1px solid var(--table-divider); }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-heading d-flex align-items-end justify-content-between gap-3 flex-wrap">
-    <div><h1>产品</h1><p class="mb-0">管理商品编码、图片和 SKU。</p></div>
+    <div><h1>产品</h1><p class="mb-0">管理产品名称、产品图片和排单内容</p></div>
     <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addProduct">＋ 新增产品</button>
 </div>
 <section class="collapse mb-4" id="addProduct">
     <div class="card"><div class="card-body">
-        <form id="productForm" class="row g-3">
+        <form id="productForm" class="row g-3 needs-validation" action="{{ url_for('create_product') }}" method="post" enctype="multipart/form-data" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="col-md-6">
-                <label class="form-label small fw-semibold" for="newProductName">产品编码</label>
-                <input class="form-control" id="newProductName" placeholder="厂家名称&商品名称" required>
+                <label class="form-label small fw-semibold" for="newProductName">厂家&产品名称</label>
+                <input class="form-control" id="newProductName" name="name" placeholder="厂家名称&商品名称" required>
+                <div class="invalid-feedback">产品名称不能为空</div>
             </div>
             <div class="col-md-6">
                 <label class="form-label small fw-semibold" for="newProductImage">产品图片</label>
-                <input class="form-control" id="newProductImage" type="file" accept=".jpg,.jpeg,.png,.gif,.webp" required>
-            </div>
-            <div class="col-12">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <label class="form-label small fw-semibold mb-0">SKU</label>
-                    <button class="btn btn-sm btn-outline-primary" type="button" id="addSkuInput">＋ 添加 SKU</button>
-                </div>
-                <div id="newSkuList" class="d-grid gap-2">
-                    <div class="new-sku-row">
-                        <input class="form-control new-sku-input" placeholder="输入 SKU 名称" required>
-                        <button class="icon-btn danger remove-new-sku" type="button" aria-label="删除 SKU" title="删除 SKU">×</button>
-                    </div>
-                </div>
+                <input class="form-control" id="newProductImage" name="image" type="file" accept=".jpg,.jpeg,.png,.gif,.webp" required>
+                <div class="invalid-feedback">请上传产品图片</div>
             </div>
             <div class="col-12 text-end"><button class="btn btn-primary" type="submit">保存产品</button></div>
         </form>
@@ -59,7 +47,7 @@
         <form class="row g-2 align-items-end" method="get">
             <div class="col-md-9">
                 <label class="form-label small fw-semibold" for="filterName">厂家 / 产品名称</label>
-                <input class="form-control" id="filterName" name="name" value="{{ query }}" placeholder="搜索厂家或产品名称，也可输入 厂家名称&产品名称">
+                <input class="form-control" id="filterName" name="name" value="{{ query }}">
             </div>
             <div class="col-md-3 d-flex gap-2">
                 <button class="btn btn-primary flex-grow-1" type="submit">搜索</button>
@@ -75,12 +63,25 @@
     <div class="table-responsive">
         <table class="table align-middle">
             <thead>
-                <tr><th class="ps-4">厂家&产品名称</th><th>图片</th><th>SKU</th><th class="text-end pe-4">操作</th></tr>
+                <tr><th class="ps-4">厂家&产品名称</th><th>今日订单</th><th>图片</th><th class="text-end pe-4">操作</th></tr>
             </thead>
             <tbody>
             {% for product in products %}
-            <tr data-product-row>
-                <td class="ps-4 fw-semibold">{{ product.factory_name }}&{{ product.name }}</td>
+            <tr data-product-row data-product-id="{{ product.id }}">
+                <td class="ps-4 fw-semibold">{{ product.factory_name }}&<span contenteditable="true" data-edit-url="{{ url_for('update_product', product_id=product.id) }}" data-field="name">{{ product.name }}</span></td>
+                <td class="today-order-cell">
+                    {% for order in product.today_orders %}
+                    <div class="today-order-content" contenteditable="true" data-edit-url="{{ url_for('update_order', order_id=order.id) }}" data-field="order_content">{{ order.order_content }}</div>
+                    {% endfor %}
+                    {% if not product.today_orders %}
+                    <button class="today-order-placeholder small text-muted border-0 bg-transparent p-0" type="button">今天暂无排单内容</button>
+                    <form class="today-order-form d-none mt-2 needs-validation" novalidate>
+                        <textarea class="form-control form-control-sm mb-2" name="order_content" rows="2" placeholder="例如：黑色110x2，120x2；白色140，150" required></textarea>
+                        <div class="invalid-feedback mb-2">排单内容不能为空。</div>
+                        <button class="btn btn-sm btn-primary" type="submit">保存今日排单</button>
+                    </form>
+                    {% endif %}
+                </td>
                 <td>
                     <label class="product-image-upload" title="点击上传或更新产品图片">
                         {% if product.image %}
@@ -88,33 +89,10 @@
                         {% else %}
                         <span class="product-thumb d-grid place-items-center text-muted small">点击上传</span>
                         {% endif %}
-                        <input class="visually-hidden" type="file" accept=".jpg,.jpeg,.png,.gif,.webp" data-image-upload="{{ url_for('upload_product_image', product_id=product.id) }}" aria-label="上传{{ product.name }}的产品图片">
+                        <input type="file" id="productImage{{ product.id }}" class="visually-hidden" accept=".jpg,.jpeg,.png,.gif,.webp" data-image-upload="{{ url_for('upload_product_image', product_id=product.id) }}" aria-label="上传{{ product.name }}的产品图片">
                     </label>
                 </td>
-                <td>
-                    <div class="sku-list">
-                        <div class="sku-entries">
-                        {% for sku in product.sku_rows %}
-                        <div class="sku-line">
-                            <span contenteditable="true" data-edit-url="{{ url_for('update_sku', sku_id=sku.sku_id) }}">{{ sku.sku_name }}</span>
-                            <button class="icon-btn danger ms-2" type="button" aria-label="删除 SKU {{ sku.sku_name }}" title="删除 SKU" data-delete-sku="{{ url_for('delete_sku', sku_id=sku.sku_id) }}" data-confirm="删除后，该 SKU 关联的订单会保留，但不再关联 SKU。确定删除？">×</button>
-                        </div>
-                        {% else %}
-                        <button class="btn btn-sm btn-outline-secondary sku-empty-add" type="button" aria-label="为 {{ product.factory_name }}&{{ product.name }} 添加 SKU">暂无 SKU · 点击添加</button>
-                        {% endfor %}
-                        </div>
-                        <form class="sku-add-form d-none" data-sku-add-url="{{ url_for('create_sku', product_id=product.id) }}">
-                            <input class="form-control form-control-sm" name="sku_name" placeholder="输入 SKU 名称" aria-label="输入 SKU 名称" required>
-                            <button class="btn btn-sm btn-outline-primary" type="submit">保存</button>
-                        </form>
-                        {% if product.sku_rows %}
-                        <button class="btn btn-sm btn-link p-0 mt-2 sku-add-toggle" type="button" aria-label="为 {{ product.factory_name }}&{{ product.name }} 添加 SKU">＋ 添加 SKU</button>
-                        {% endif %}
-                    </div>
-                </td>
                 <td class="text-end pe-4 text-nowrap">
-                    <button class="icon-btn" type="button" aria-label="上移" title="上移" data-action-url="{{ url_for('move_product', product_id=product.id) }}" data-direction="up">↑</button>
-                    <button class="icon-btn" type="button" aria-label="下移" title="下移" data-action-url="{{ url_for('move_product', product_id=product.id) }}" data-direction="down">↓</button>
                     <button class="icon-btn danger" type="button" aria-label="删除" title="删除" data-action-url="{{ url_for('delete_product', product_id=product.id) }}" data-confirm="确定删除这个产品？">🗑</button>
                 </td>
             </tr>
@@ -130,105 +108,55 @@
     <div class="empty-state"><div class="fs-2 mb-2">▤</div><div class="fw-semibold mb-1">暂无产品</div><div class="small">当前没有产品记录。</div></div>
     {% endif %}
 </section>
-<div class="editable-hint mt-3">提示：产品列表仅显示 SKU 信息；点击 SKU 名称可修改。</div>
+<div class="editable-hint mt-3">提示：点击产品名称或今日订单内容可直接修改；没有今日订单时可新增排单。</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     const productForm = document.getElementById('productForm');
-    const productNameInput = document.getElementById('newProductName');
-    const newSkuList = document.getElementById('newSkuList');
-
-    document.getElementById('addSkuInput').addEventListener('click', () => {
-        const row = document.createElement('div');
-        row.className = 'new-sku-row';
-        const input = document.createElement('input');
-        input.className = 'form-control new-sku-input';
-        input.placeholder = '输入 SKU 名称';
-        input.required = true;
-        const remove = document.createElement('button');
-        remove.className = 'icon-btn danger remove-new-sku';
-        remove.type = 'button';
-        remove.setAttribute('aria-label', '删除 SKU');
-        remove.title = '删除 SKU';
-        remove.textContent = '×';
-        row.append(input, remove);
-        newSkuList.append(row);
-        input.focus();
-    });
-
-    newSkuList.addEventListener('click', (event) => {
-        const remove = event.target.closest('.remove-new-sku');
-        if (!remove) return;
-        const rows = newSkuList.querySelectorAll('.new-sku-row');
-        if (rows.length === 1) {
-            rows[0].querySelector('input').value = '';
-            return;
-        }
-        remove.closest('.new-sku-row').remove();
-    });
 
     productForm.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (!validateForm(productForm)) return;
         try {
-            const formData = new FormData();
-            formData.append('name', productNameInput.value);
-            formData.append('sku_names', JSON.stringify(
-                Array.from(newSkuList.querySelectorAll('.new-sku-input'), (input) => input.value)
-            ));
-            formData.append('image', document.getElementById('newProductImage').files[0]);
+            const formData = new FormData(productForm);
             const response = await fetch('{{ url_for("create_product") }}', {
                 method: 'POST',
+                headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
                 body: formData
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || '保存产品失败');
             window.location.href = result.factory_created
-                ? '{{ url_for("factorys") }}'
+                ? `{{ url_for("factorys") }}?after_address_product=${result.id}`
                 : window.location.href;
         } catch (error) {
             window.alert(error.message);
         }
     });
 
-    document.querySelectorAll('[data-delete-sku]').forEach((button) => {
-        button.addEventListener('click', async () => {
-            if (!window.confirm(button.dataset.confirm)) return;
-            button.disabled = true;
-            try {
-                await sendUpdate(button.dataset.deleteSku, {});
-                window.location.reload();
-            } catch (error) {
-                window.alert(error.message);
-                button.disabled = false;
-            }
-        });
-    });
-
-    document.querySelectorAll('.sku-add-toggle, .sku-empty-add').forEach((button) => {
+    document.querySelectorAll('.today-order-placeholder').forEach((button) => {
         button.addEventListener('click', () => {
-            const skuList = button.closest('.sku-list');
-            const form = skuList.querySelector('.sku-add-form');
-            const input = form.querySelector('input');
-            if (button.classList.contains('sku-empty-add')) button.remove();
+            const form = button.parentElement.querySelector('.today-order-form');
+            button.classList.add('d-none');
             form.classList.remove('d-none');
-            input.focus();
+            form.querySelector('textarea').focus();
         });
     });
 
-    document.querySelectorAll('.sku-add-form').forEach((form) => {
+    document.querySelectorAll('.today-order-form').forEach((form) => {
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const button = form.querySelector('button[type="submit"]');
-            button.disabled = true;
+            if (!validateForm(form)) return;
+            const productId = form.closest('[data-product-row]').dataset.productId;
             try {
-                await sendUpdate(form.dataset.skuAddUrl, {
-                    sku_name: form.elements.sku_name.value
+                await sendUpdate('{{ url_for("create_order") }}', {
+                    product_id: productId,
+                    order_content: form.elements.order_content.value
                 });
                 window.location.reload();
             } catch (error) {
                 window.alert(error.message);
-                button.disabled = false;
             }
         });
     });
@@ -240,7 +168,11 @@
             formData.append('image', input.files[0]);
             input.disabled = true;
             try {
-                const response = await fetch(input.dataset.imageUpload, { method: 'POST', body: formData });
+                const response = await fetch(input.dataset.imageUpload, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
+                    body: formData
+                });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || '图片上传失败');
                 window.location.reload();
