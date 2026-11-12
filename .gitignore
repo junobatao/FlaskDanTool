@@ -1,8 +1,9 @@
 __pycache__
 .venv/
 .vscode/
+# 无需ignore：本地无隐私、测试数据
 # instance/
 # .flaskenv
-.env
+# .env
 # *.xlsx
 # *.bat
